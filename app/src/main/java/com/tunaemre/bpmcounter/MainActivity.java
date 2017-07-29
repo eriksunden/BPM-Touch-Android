@@ -33,9 +33,14 @@ public class MainActivity extends ExtendedCompatActivity
 
 	private Menu mMenu = null;
 
+    private TextView txtFFT = null;
 	private TextView txtBpm = null;
 	private TextView txtCount = null;
-	
+
+    private long mLastFFTCalcTiming = 0;
+    private List<Long> mFFTCalcTimings;
+    private int mFFTCalcCount = 0;
+
 	private long mLastBeatTiming = 0;
 	private List<Long> mBeatTimings;
 	private int mBeatCount = 0;
@@ -96,9 +101,11 @@ public class MainActivity extends ExtendedCompatActivity
 	@Override
 	protected void prepareActivity()
 	{
+        txtFFT = (TextView) findViewById(R.id.txtFFT);
 		txtBpm = (TextView) findViewById(R.id.txtBpm);
 		txtCount = (TextView) findViewById(R.id.txtCount);
 
+        mFFTCalcTimings = new Vector<Long>();
 		mBeatTimings = new Vector<Long>();
 		
 		findViewById(R.id.btnReset).setOnClickListener(new OnClickListener()
@@ -141,6 +148,21 @@ public class MainActivity extends ExtendedCompatActivity
 				return false;
 			}
 		});
+	}
+
+	private void saveFFTCalcTime(long time)
+	{
+        if (mFFTCalcCount >= mBeatCount)
+        {
+            return;
+        }
+
+        mFFTCalcTimings.add(time);
+        mFFTCalcCount++;
+
+        mLastFFTCalcTiming = time;
+
+		updateStats();
 	}
 
 	private void saveBeat(long time)
@@ -239,12 +261,10 @@ public class MainActivity extends ExtendedCompatActivity
 		}
 		
 		float averageTiming = 0f;
-		
 		for (int i = 0; i < mBeatTimings.size(); i++)
 		{
 			averageTiming += mBeatTimings.get(i);
 		}
-		
 		averageTiming = averageTiming / mBeatTimings.size();
 		
 		float bpmFloat = (1000f / averageTiming) * 60f;
@@ -254,18 +274,35 @@ public class MainActivity extends ExtendedCompatActivity
 		txtCount.setText(String.valueOf(mBeatCount));
 
 		txtBpm.setText(String.valueOf(bpmInteger));
+
+        averageTiming = 0f;
+        for (int i = 0; i < mFFTCalcTimings.size(); i++)
+        {
+            averageTiming += mFFTCalcTimings.get(i);
+        }
+        averageTiming = averageTiming / mFFTCalcTimings.size();
+
+        /*float fftFloat = (1000f / averageTiming) * 60f;
+
+        int fftInteger = Math.round(fftFloat);*/
+
+        txtFFT.setText(String.valueOf(averageTiming));
 	}
 
 	private void resetStats()
 	{
+        txtFFT.setText("-");
 		txtBpm.setText("-");
 		txtCount.setText("0");
 
+        mFFTCalcCount = 0;
+        mFFTCalcTimings = null;
+        mFFTCalcTimings = new Vector<Long>();
+        mLastFFTCalcTiming = 0;
+
 		mBeatCount = 0;
 		mBeatTimings = null;
-
 		mBeatTimings = new Vector<Long>();
-
 		mLastBeatTiming = 0;
 	}
 
@@ -327,6 +364,30 @@ public class MainActivity extends ExtendedCompatActivity
 								}, 100);
 
 								saveBeat((long) (time * 1000));
+							}
+						});
+					}
+
+					@Override
+					public void fftCalculationTime(final long time) {
+						runOnUiThread(new Runnable()
+						{
+							@Override
+							public void run()
+							{
+								final Drawable indicatorDrawable = ((ImageView)findViewById(R.id.imgTouchPad)).getDrawable();
+								final int[] initialState = indicatorDrawable.getState();
+								indicatorDrawable.setState(new int[] {android.R.attr.state_pressed});
+
+								new Handler().postDelayed(new Runnable() {
+									@Override
+									public void run()
+									{
+										indicatorDrawable.setState(initialState);
+									}
+								}, 100);
+
+                                saveFFTCalcTime(time);
 							}
 						});
 					}
