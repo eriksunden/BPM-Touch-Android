@@ -152,10 +152,10 @@ public class MainActivity extends ExtendedCompatActivity
 
 	private void saveFFTCalcTime(long time)
 	{
-        if (mFFTCalcCount >= mBeatCount)
+        /*if (mFFTCalcCount >= mBeatCount)
         {
             return;
-        }
+        }*/
 
         mFFTCalcTimings.add(time);
         mFFTCalcCount++;
@@ -254,13 +254,14 @@ public class MainActivity extends ExtendedCompatActivity
 
 	private void updateStats()
 	{
-		if (mBeatCount < 4)
+        float averageTiming = 0f;
+
+		/*if (mBeatCount < 4)
 		{
 			txtCount.setText(String.valueOf(mBeatCount));
 			return;
 		}
-		
-		float averageTiming = 0f;
+
 		for (int i = 0; i < mBeatTimings.size(); i++)
 		{
 			averageTiming += mBeatTimings.get(i);
@@ -268,14 +269,15 @@ public class MainActivity extends ExtendedCompatActivity
 		averageTiming = averageTiming / mBeatTimings.size();
 		
 		float bpmFloat = (1000f / averageTiming) * 60f;
+
+		averageTiming = 0f;
 		
 		int bpmInteger = Math.round(bpmFloat);
-		
-		txtCount.setText(String.valueOf(mBeatCount));
 
-		txtBpm.setText(String.valueOf(bpmInteger));
+		txtBpm.setText(String.valueOf(bpmInteger));*/
 
-        averageTiming = 0f;
+        txtCount.setText(String.valueOf(mFFTCalcCount));
+
         for (int i = 0; i < mFFTCalcTimings.size(); i++)
         {
             averageTiming += mFFTCalcTimings.get(i);
