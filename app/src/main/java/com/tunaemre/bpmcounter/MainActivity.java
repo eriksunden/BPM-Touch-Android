@@ -21,6 +21,7 @@ import com.tunaemre.bpmcounter.operator.PermissionOperator;
 import com.tunaemre.bpmcounter.sound.MicrophoneEvent;
 import com.tunaemre.bpmcounter.sound.MicrophoneManager;
 
+import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Vector;
@@ -30,7 +31,7 @@ public class MainActivity extends ExtendedCompatActivity
 	private PermissionOperator mPermissionOperator = new PermissionOperator();
 
 	private ExecuteMicrophoneListener mExecuteMicrophoneListener = null;
-
+	private InputStream mResponseStream = null;
 	private Menu mMenu = null;
 
     private TextView txtFFT = null;
@@ -52,6 +53,8 @@ public class MainActivity extends ExtendedCompatActivity
 
 		setContentView(R.layout.activity_main);
 		getSupportActionBar().setTitle("Touch Now!");
+
+		mResponseStream = getApplicationContext().getResources().openRawResource(R.raw.response_mono);
 	}
 
 	@Override
@@ -332,6 +335,7 @@ public class MainActivity extends ExtendedCompatActivity
 			protected Void doInBackground(Void... args)
 			{
 				mMicrophoneManager = new MicrophoneManager();
+				mMicrophoneManager.init(mResponseStream);
 				mMicrophoneManager.run(new MicrophoneEvent() {
 					@Override
 					public void soundMeter(final double dB)

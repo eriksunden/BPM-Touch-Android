@@ -1,16 +1,17 @@
 package com.tunaemre.bpmcounter.sound;
 
 import android.util.Log;
-import android.media.AudioManager;
+
+import java.io.InputStream;
 
 import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.AudioEvent;
 import be.tarsos.dsp.AudioProcessor;
 import be.tarsos.dsp.SilenceDetector;
+import be.tarsos.dsp.io.UniversalAudioInputStream;
 import be.tarsos.dsp.io.android.AudioDispatcherFactory;
 import be.tarsos.dsp.io.android.AndroidAudioPlayer;
-import be.tarsos.dsp.onsets.OnsetHandler;
-import be.tarsos.dsp.onsets.PercussionOnsetDetector;
+import be.tarsos.dsp.io.TarsosDSPAudioFormat;
 
 import be.tarsos.dsp.util.fft.FFT;
 
@@ -23,10 +24,44 @@ public class MicrophoneManager
     public static double SILENCE_THRESHOLD = -30;
 
     private AudioDispatcher mAudioDispatcher = AudioDispatcherFactory.fromDefaultMicrophone(SAMPLE_RATE, BUFFER_SIZE, OVERLAP);
+    private AudioDispatcher mAudioDispatcherResponse = null;
 
     private MicrophoneEvent mMicrophoneEvent = null;
 
-    private FFT fft;
+    private FFT mFFT = new FFT(BUFFER_SIZE);
+    private float[] mResponseAudioFloatBuffer;
+
+    public void init(final InputStream responseStream)
+    {
+        TarsosDSPAudioFormat format = new TarsosDSPAudioFormat(SAMPLE_RATE, 16, 1, true, false);
+        UniversalAudioInputStream uais = new UniversalAudioInputStream(responseStream, format);
+
+        mAudioDispatcherResponse = new AudioDispatcher(uais, BUFFER_SIZE, OVERLAP);
+
+        mAudioDispatcherResponse.addAudioProcessor(new AudioProcessor() {
+            @Override
+            public boolean process(AudioEvent audioEvent) {
+                float[] audioFloatBuffer = audioEvent.getFloatBuffer();
+
+                mFFT.forwardTransform(audioFloatBuffer);
+
+                mResponseAudioFloatBuffer = audioFloatBuffer.clone();
+
+                mFFT.backwardsTransform(audioFloatBuffer);
+
+                return true;
+            }
+
+            @Override
+            public void processingFinished() {
+
+            }
+        });
+
+        mAudioDispatcherResponse.addAudioProcessor(new AndroidAudioPlayer(mAudioDispatcherResponse.getFormat()));
+
+        mAudioDispatcherResponse.run();
+    }
 
     public void run(final MicrophoneEvent microphoneProcessor)
     {
@@ -38,18 +73,6 @@ public class MicrophoneManager
             Log.e("AudioDispatcherFactory", "Check Sample Rate:" + SAMPLE_RATE);
             mAudioDispatcher = AudioDispatcherFactory.fromDefaultMicrophone(SAMPLE_RATE, BUFFER_SIZE, OVERLAP);
         }
-
-        /*mAudioDispatcher.addAudioProcessor(new PercussionOnsetDetector((float) SAMPLE_RATE, BUFFER_SIZE, new OnsetHandler()
-        {
-            @Override
-            public void handleOnset(double time, double salience)
-            {
-                if (mMicrophoneEvent == null)
-                    return;
-
-                mMicrophoneEvent.onBeat(time);
-            }
-        }, PercussionOnsetDetector.DEFAULT_SENSITIVITY, PercussionOnsetDetector.DEFAULT_THRESHOLD));*/
 
         final SilenceDetector silenceDetector = new SilenceDetector(SILENCE_THRESHOLD, false);
 
@@ -71,8 +94,6 @@ public class MicrophoneManager
             }
         });
 
-        fft =  new FFT(BUFFER_SIZE);
-
         // FFT test
         mAudioDispatcher.addAudioProcessor(new AudioProcessor() {
             @Override
@@ -82,9 +103,11 @@ public class MicrophoneManager
 
                 float[] audioFloatBuffer = audioEvent.getFloatBuffer();
 
-                fft.forwardTransform(audioFloatBuffer);
+                mFFT.forwardTransform(audioFloatBuffer);
 
-                fft.backwardsTransform(audioFloatBuffer);
+                mFFT.multiply(audioFloatBuffer, mResponseAudioFloatBuffer);
+
+                mFFT.backwardsTransform(audioFloatBuffer);
 
                 long estimatedTime = System.currentTimeMillis() - startTime;
 
